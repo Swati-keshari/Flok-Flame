@@ -1,16 +1,78 @@
-# React + Vite
+# Fork & Flame
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A restaurant website with a backend. Customers can:
 
-Currently, two official plugins are available:
+- see restaurants near their current location on a map,
+- **order food online** (cart, checkout, Cash on Delivery or online payment with Razorpay),
+- **book a table**,
+- track their order and see all their orders and bookings,
+- send a contact message and subscribe to the newsletter.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+An **admin panel** lets the owner manage orders, bookings, restaurants, menus, messages and subscribers.
 
-## React Compiler
+## Folders
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```
+Flok&Flame/
+├── backend/   → Node.js + Express API server, talks to MongoDB   (see backend/README.md)
+└── swati/     → React website (Vite + Tailwind CSS)               (see swati/README.md)
+```
 
-## Expanding the ESLint configuration
+How they work together:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```
+Browser (React site, port 5173)
+   │  fetch('/api/...')
+   ▼
+Vite dev server ── proxies /api ──► Express backend (port 5000) ──► MongoDB (port 27017)
+                                          │
+                                          └──► Razorpay (online payments)
+```
+
+## How to run (every time)
+
+Open two terminals.
+
+```bash
+# Terminal 1 – backend (also starts MongoDB if it is not running)
+cd backend
+npm run dev
+
+# Terminal 2 – website
+cd swati
+npm run dev
+```
+
+Then open http://localhost:5173
+
+## First-time setup
+
+```bash
+cd backend
+npm install
+cp .env.example .env          # then fill in the values (see backend/README.md)
+npm run seed                  # adds 12 sample restaurants with menus
+npm run create-admin -- admin@example.com YourPassword
+
+cd ../swati
+npm install
+```
+
+## Main pages
+
+| URL | Page |
+|---|---|
+| `/` | Home page (hero, about, menu, table booking form, testimonials, contact) |
+| `/restaurants` | Restaurants near you (map + list) |
+| `/restaurants/:id` | One restaurant: order online, book a table, location |
+| `/cart` | Checkout |
+| `/orders/:id` | Order tracking |
+| `/my-bookings` | My orders & bookings (find with email + phone) |
+| `/admin` | Admin panel (login needed) |
+
+## Tests
+
+```bash
+cd backend
+npm test        # 31 API checks on a separate test database
+```

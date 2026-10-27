@@ -1,0 +1,20 @@
+/*
+ * Global styles for the whole site.
+ * - Loads Google Fonts and Tailwind CSS.
+ * - @theme defines our brand colours. Tailwind turns them into classes like
+ *   bg-primary, text-primary, bg-secondary, text-accent, text-dark.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Jost:ital,wght@0,100..900;1,100..900&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Roboto+Condensed:ital,wght@0,100..900;1,100..900&family=Saira:ital,wght@0,100..900;1,100..900&display=swap');
+
+@import "tailwindcss";
+*{
+  font-family: Saira, sans-serif;
+}
+
+ @theme {
+  --color-primary: #c41e3a;
+  --color-secondary: #f8f0e3;
+  --color-accent: #1e3a8a;
+  --color-dark:#1f2937;
+}
