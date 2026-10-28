@@ -5,6 +5,7 @@
 import { useState } from 'react'
 import { FaClock, FaEnvelope, FaLocationArrow, FaPhone } from 'react-icons/fa6'
 import { postJSON } from '../api'
+import { phoneLink, siteInfo } from '../siteInfo'
 
 const Contact = () => {
   const [status, setStatus] = useState({ type: '', text: '' })
@@ -50,7 +51,7 @@ const Contact = () => {
                         </div>
                         <div className='mt-4'>
                             <p className='text-xl text-dark font-semibold'>Address</p>
-                            <p className='w-60'>123 Gourmet Street, Food District, New York, NY 10001</p>
+                            <p className='max-w-60'>{siteInfo.address}</p>
 
                         </div>
                     </div>
@@ -61,7 +62,7 @@ const Contact = () => {
                         </div>
                         <div className='mt-4'>
                             <p className='text-xl text-dark font-semibold'>Phone</p>
-                            <p className='w-60'> +91 8793847572</p>
+                            <a href={phoneLink} className='max-w-60 hover:text-primary'>{siteInfo.phone}</a>
 
                         </div>
                     </div>
@@ -72,7 +73,7 @@ const Contact = () => {
                         </div>
                         <div className='mt-4'>
                             <p className='text-xl text-dark font-semibold'>Email</p>
-                            <p className='w-60'>info@swati.com</p>
+                            <a href={`mailto:${siteInfo.email}`} className='max-w-60 break-all hover:text-primary'>{siteInfo.email}</a>
 
                         </div>
                     </div>
@@ -83,10 +84,9 @@ const Contact = () => {
                         </div>
                         <div className='mt-4'>
                             <p className='text-xl text-dark font-semibold'>Hours</p>
-                            <p className='w-60'>Monday–Thursday: 5:00 PM to 10:00 PM<br />
-                              Friday–Saturday: 5:00 PM to 11:00 PM
-
-                            </p>
+                            {siteInfo.hours.map((h) => (
+                              <p key={h.days} className='max-w-60'>{h.days}<br />{h.time}</p>
+                            ))}
 
                         </div>
                     </div>

@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { FaFacebook, FaInstagram, FaLinkedin, FaLocationArrow, FaTwitter } from 'react-icons/fa6'
 import { Link } from 'react-router-dom'
 import { postJSON } from '../api'
+import { phoneLink, siteInfo } from '../siteInfo'
 
 const Footer = () => {
   const [email, setEmail] = useState('')
@@ -62,10 +63,11 @@ const Footer = () => {
           { /*third-col*/}
           <div className='space-y-2'>
              <h1 className='text-xl text-dark font-semibold mb-4'>Contact info</h1>
-             <ul>
-              <li>123 Delhi street,10091</li>
-              <li>(123) 432-7659 </li>
-              <li>info@swati.com</li>
+             <ul className='space-y-2'>
+              <li>{siteInfo.address}</li>
+              <li><a href={phoneLink} className='hover:text-primary'>{siteInfo.phone}</a></li>
+              <li><a href={`mailto:${siteInfo.email}`} className='break-all hover:text-primary'>{siteInfo.email}</a></li>
+              {siteInfo.hours.map((h) => <li key={h.days}>{h.days}: {h.time}</li>)}
              </ul>
           </div>
           {/*4-col*/}
