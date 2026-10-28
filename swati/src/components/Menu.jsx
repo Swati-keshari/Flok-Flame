@@ -47,7 +47,7 @@ const Menu = () => {
                                 <span className='text-sm text-primary font-bold'>{food.price}</span>
 
                             </div>
-                            <p className=' text-sm text-gray-700'>{food.ingredients}</p>
+                            <p className='px-4 pb-4 -mt-2 text-sm text-gray-700'>{food.ingredients}</p>
 
                          </div>
 

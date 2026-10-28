@@ -17,7 +17,7 @@ const Navbar = () => {
     const firstName = customer?.name.split(' ')[0]
 
   return (
-    <div className='no-print shadow-md sticky top-0 z-50 backdrop-blur-3xl'>
+    <div className='no-print shadow-md sticky top-0 z-50 bg-white/90 backdrop-blur-3xl'>
         <div className='container mx-auto px-6 sm:px-8 md:px12 lg:px-24'>
             <div className='flex justify-between py-4'>
             {/* logo */}
