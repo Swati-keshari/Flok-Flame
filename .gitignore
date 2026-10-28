@@ -12,7 +12,6 @@ dist-ssr/
 *.log
 
 # Editor / tool settings
-.claude/
 .vscode/*
 !.vscode/extensions.json
 .idea/
