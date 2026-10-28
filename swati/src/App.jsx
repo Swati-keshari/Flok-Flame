@@ -6,7 +6,7 @@
 // /my-bookings (and /my-orders), /admin/login, /admin, and * (404 page).
 
 import { lazy, Suspense } from 'react'
-import {Routes, Route} from 'react-router-dom'
+import {Routes, Route, Navigate} from 'react-router-dom'
 import Home from './pages/Home'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
@@ -38,6 +38,8 @@ const App = () => {
           <Route path='/my-orders' element={<MyBookings />} />
           <Route path='/admin/login' element={<AdminLogin />} />
           <Route path='/admin' element={<AdminDashboard />} />
+          {/* /owner is a friendly alias for the admin panel */}
+          <Route path='/owner' element={<Navigate to='/admin' replace />} />
           <Route path='*' element={<NotFound />} />
         </Routes>
       </Suspense>
