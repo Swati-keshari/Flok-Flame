@@ -28,7 +28,7 @@ const Footer = () => {
         <div className='grid grid-cols-1 md:grid-cols-4 gap-8'>
          { /*first-col*/}
           <div>
-            <h1 className='text-xl font-semibold mb-4'>Fork &
+            <h1 className='text-xl font-semibold mb-4'>Fork &{' '}
               <span className='text-primary'>Flame</span></h1>
               <p>Experience the finest culinary journey in the heart
                 of the city
