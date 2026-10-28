@@ -13,9 +13,9 @@ export default defineConfig({
   plugins: [react(),tailwindcss()],
   server: {
     proxy: {
-      '/api': process.env.API_PROXY || 'http://localhost:5000',
+      '/api':process.env.API_PROXY || 'http://localhost:5000',
       // dish / restaurant photos uploaded from the admin panel live on the backend
-      '/uploads': process.env.API_PROXY || 'http://localhost:5000',
+      '/uploads':process.env.API_PROXY || 'http://localhost:5000',
     },
   },
 })
