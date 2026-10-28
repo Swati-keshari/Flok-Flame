@@ -5,10 +5,11 @@ A restaurant website with a backend. Customers can:
 - see restaurants near their current location on a map,
 - **order food online** (cart, checkout, Cash on Delivery or online payment with Razorpay),
 - **book a table**,
+- create an account (sign up / log in) so all their orders and bookings are in one place,
 - track their order and see all their orders and bookings,
 - send a contact message and subscribe to the newsletter.
 
-An **admin panel** lets the owner manage orders, bookings, restaurants, menus, messages and subscribers.
+An **admin panel** (`/admin` or `/owner`) shows a sales dashboard and lets the owner manage orders, bookings, restaurants, menus, messages and subscribers.
 
 ## Folders
 
@@ -67,12 +68,13 @@ npm install
 | `/restaurants/:id` | One restaurant: order online, book a table, location |
 | `/cart` | Checkout |
 | `/orders/:id` | Order tracking |
-| `/my-bookings` | My orders & bookings (find with email + phone) |
-| `/admin` | Admin panel (login needed) |
+| `/login` | Customer log in / sign up |
+| `/my-bookings` | My orders & bookings (automatic when logged in, otherwise find with email + phone) |
+| `/admin` (or `/owner`) | Admin panel with sales dashboard (login needed) |
 
 ## Tests
 
 ```bash
 cd backend
-npm test        # 31 API checks on a separate test database
+npm test        # 47 API checks on a separate test database
 ```

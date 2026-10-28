@@ -1,11 +1,12 @@
 // Admin panel (route "/admin"). Only works when logged in.
 // - Checks the saved token with /api/auth/me; if it is invalid, goes back to the login page.
-// - Tabs: Food Orders, Table Bookings, Restaurants (+ menus), Messages, Subscribers.
+// - Tabs: Dashboard (sales numbers), Food Orders, Table Bookings, Restaurants (+ menus), Messages, Subscribers.
 // Each tab gets onUnauthorized (= logout) to call if the session expires.
 
 import { useEffect, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { getJSON, getToken, setToken } from '../../api'
+import DashboardTab from '../../components/admin/DashboardTab'
 import OrdersTab from '../../components/admin/OrdersTab'
 import BookingsTab from '../../components/admin/BookingsTab'
 import RestaurantsTab from '../../components/admin/RestaurantsTab'
@@ -13,6 +14,7 @@ import MessagesTab from '../../components/admin/MessagesTab'
 import SubscribersTab from '../../components/admin/SubscribersTab'
 
 const tabs = [
+  { id: 'dashboard', label: 'Dashboard', Component: DashboardTab },
   { id: 'orders', label: 'Food Orders', Component: OrdersTab },
   { id: 'bookings', label: 'Table Bookings', Component: BookingsTab },
   { id: 'restaurants', label: 'Restaurants', Component: RestaurantsTab },
@@ -23,7 +25,7 @@ const tabs = [
 const AdminDashboard = () => {
   const navigate = useNavigate()
   const [admin, setAdmin] = useState(null)
-  const [activeTab, setActiveTab] = useState('orders')
+  const [activeTab, setActiveTab] = useState('dashboard')
   const hasToken = Boolean(getToken())
 
   const logout = () => {
@@ -78,7 +80,7 @@ const AdminDashboard = () => {
           ))}
         </div>
 
-        <Component onUnauthorized={logout} />
+        <Component onUnauthorized={logout} onOpenTab={setActiveTab} />
       </div>
     </div>
   )

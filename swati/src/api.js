@@ -4,11 +4,14 @@
 //   (and error.status = HTTP status code, e.g. 401 = not logged in).
 // - getToken / setToken save the admin login token in localStorage. When a token exists,
 //   it is sent as "Authorization: Bearer <token>" so admin-only APIs work.
+// - getCustomerToken / setCustomerToken do the same for a logged-in customer; that token
+//   is sent as "X-Customer-Token" (a different header, so admin and customer never mix).
 
 // In dev, Vite proxies /api to the backend (see vite.config.js).
 // For production, set VITE_API_URL to the deployed backend URL.
 const API_URL = import.meta.env.VITE_API_URL || ''
 const TOKEN_KEY = 'adminToken'
+const CUSTOMER_TOKEN_KEY = 'customerToken'
 
 export const getToken = () => {
   try { return localStorage.getItem(TOKEN_KEY) } catch { return null }
@@ -17,6 +20,16 @@ export const setToken = (token) => {
   try {
     if (token) localStorage.setItem(TOKEN_KEY, token)
     else localStorage.removeItem(TOKEN_KEY)
+  } catch { /* storage unavailable */ }
+}
+
+export const getCustomerToken = () => {
+  try { return localStorage.getItem(CUSTOMER_TOKEN_KEY) } catch { return null }
+}
+export const setCustomerToken = (token) => {
+  try {
+    if (token) localStorage.setItem(CUSTOMER_TOKEN_KEY, token)
+    else localStorage.removeItem(CUSTOMER_TOKEN_KEY)
   } catch { /* storage unavailable */ }
 }
 
@@ -30,6 +43,8 @@ const request = async (method, path, { body, params } = {}) => {
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   const token = getToken()
   if (token) headers.Authorization = `Bearer ${token}`
+  const customerToken = getCustomerToken()
+  if (customerToken) headers['X-Customer-Token'] = customerToken
 
   const res = await fetch(`${API_URL}${path}${query ? `?${query}` : ''}`, {
     method,

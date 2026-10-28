@@ -1,9 +1,9 @@
 // App: the top-level component. Decides which page to show for each URL (routes).
 // - Navbar and Footer are shown on every page.
-// - CartProvider wraps everything so any page can read/change the food cart.
+// - CustomerProvider knows which customer is logged in; CartProvider holds the food cart.
 // - CartBar is the green "View Cart" bar at the bottom of the screen.
 // Routes: / (home), /restaurants, /restaurants/:id, /cart, /orders/:id,
-// /my-bookings (and /my-orders), /admin/login, /admin, and * (404 page).
+// /my-bookings (and /my-orders), /login (customer), /admin/login, /admin, and * (404 page).
 
 import { lazy, Suspense } from 'react'
 import {Routes, Route, Navigate} from 'react-router-dom'
@@ -12,6 +12,7 @@ import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import CartBar from './components/CartBar'
 import CartProvider from './context/CartProvider'
+import CustomerProvider from './context/CustomerProvider'
 
 // Loaded only when visited, so the home page downloads less (maps + admin are heavy)
 const Restaurants = lazy(() => import('./pages/Restaurants'))
@@ -21,10 +22,12 @@ const Cart = lazy(() => import('./pages/Cart'))
 const OrderTracking = lazy(() => import('./pages/OrderTracking'))
 const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'))
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
+const CustomerLogin = lazy(() => import('./pages/CustomerLogin'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
 const App = () => {
   return (
+    <CustomerProvider>
     <CartProvider>
       <Navbar />
       <Suspense fallback={<p className='min-h-[60vh] py-20 text-center text-gray-700'>Loading...</p>}>
@@ -36,6 +39,7 @@ const App = () => {
           <Route path='/orders/:id' element={<OrderTracking />} />
           <Route path='/my-bookings' element={<MyBookings />} />
           <Route path='/my-orders' element={<MyBookings />} />
+          <Route path='/login' element={<CustomerLogin />} />
           <Route path='/admin/login' element={<AdminLogin />} />
           <Route path='/admin' element={<AdminDashboard />} />
           {/* /owner is a friendly alias for the admin panel */}
@@ -46,6 +50,7 @@ const App = () => {
       <Footer/>
       <CartBar />
     </CartProvider>
+    </CustomerProvider>
   )
 }
 

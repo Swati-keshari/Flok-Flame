@@ -23,18 +23,19 @@ swati/
     │   ├── Cart.jsx              /cart             checkout: address, bill, payment choice
     │   ├── OrderTracking.jsx     /orders/:id       live order status, pay now, cancel
     │   ├── MyBookings.jsx        /my-bookings      a customer's orders and bookings
+    │   ├── CustomerLogin.jsx     /login            customer log in / sign up
     │   ├── NotFound.jsx          *                 "page not found"
     │   └── admin/
     │       ├── AdminLogin.jsx     /admin/login
-    │       └── AdminDashboard.jsx /admin           tabs for the admin panel
+    │       └── AdminDashboard.jsx /admin (/owner)  tabs for the admin panel
     ├── components/       → reusable pieces of the pages
     │   ├── Navbar, Footer, Hero, About, Menu, Reservation, Testimonial, Contact → home page sections
     │   ├── RestaurantCard, RestaurantMap, RestaurantMenu, BookTableForm      → restaurant pages
     │   ├── CartBar, QuantityControl, VegIcon                                 → ordering
     │   ├── StatusBadge, OrderStatusBadge                                     → coloured status labels
     │   ├── InputField, ItemModel (dish popup)                                → small UI helpers
-    │   └── admin/        → admin panel tabs: Orders, Bookings, Restaurants (+ form, map picker, menu editor), Messages, Subscribers
-    ├── context/          → the shopping cart, shared by every page (saved in the browser)
+    │   └── admin/        → admin panel tabs: Dashboard (sales chart), Orders, Bookings, Restaurants (+ form, map picker, menu editor), Messages, Subscribers
+    ├── context/          → shared state for every page: the shopping cart and the logged-in customer
     ├── hooks/            → reusable logic: useFetch (load data), useCurrentLocation (GPS)
     ├── utils/            → helpers: opening hours, order status text, Razorpay checkout, saved orders, images
     └── assets/           → images and the static home-page menu / testimonials data

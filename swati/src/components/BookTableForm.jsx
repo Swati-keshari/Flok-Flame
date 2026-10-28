@@ -6,6 +6,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getJSON, postJSON } from '../api'
+import { useCustomer } from '../context/customerContext'
 import InputField from './InputField'
 import { hoursLabel } from '../utils/time'
 
@@ -21,7 +22,10 @@ const emptyBooking = {
 }
 
 const BookTableForm = ({ restaurant }) => {
-  const [booking, setBooking] = useState(emptyBooking)
+  const { customer } = useCustomer()
+  // Logged-in customers get their name, email and phone filled in
+  const startBooking = customer ? { ...emptyBooking, fullname: customer.name, email: customer.email, phone: customer.phone } : emptyBooking
+  const [booking, setBooking] = useState(startBooking)
   const [availability, setAvailability] = useState({ key: null, available: null })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
@@ -55,7 +59,7 @@ const BookTableForm = ({ restaurant }) => {
         restaurant: restaurant._id,
       })
       setConfirmed(saved)
-      setBooking(emptyBooking)
+      setBooking(startBooking)
     } catch (err) {
       setSubmitError(err.message)
     } finally {

@@ -2,18 +2,22 @@
 // The customer enters the email + phone they used; we then show two tabs:
 //   - Food Orders (click one to track it)
 //   - Table Bookings (upcoming ones can be cancelled)
-// There is no customer login: email + phone together prove the bookings are theirs.
+// Guests: email + phone together prove the orders/bookings are theirs.
+// Logged-in customers: everything loads automatically from their account (no form).
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { patchJSON, postJSON } from '../api'
+import { getJSON, patchJSON, postJSON } from '../api'
+import { useCustomer } from '../context/customerContext'
 import InputField from '../components/InputField'
 import StatusBadge from '../components/StatusBadge'
 import OrderStatusBadge from '../components/OrderStatusBadge'
 import { paymentLabel } from '../utils/orderStatus'
 import { loadDeliveryDetails, rememberOrder } from '../utils/recentOrders'
 
-const today = new Date().toISOString().split('T')[0]
+// Local date as YYYY-MM-DD (toISOString would give the UTC date)
+const now = new Date()
+const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 const formatDateTime = (iso) => new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
 
 const MyBookings = () => {
@@ -25,6 +29,21 @@ const MyBookings = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [cancellingId, setCancellingId] = useState(null)
+  const { customer } = useCustomer()
+
+  // Logged in: load my orders + bookings straight from the account
+  useEffect(() => {
+    if (!customer) return
+    let ignore = false
+    Promise.all([getJSON('/api/customers/me/orders'), getJSON('/api/customers/me/bookings')])
+      .then(([orders, bookings]) => {
+        if (ignore) return
+        orders.forEach((o) => rememberOrder(o._id, o.customer.phone))
+        setResults({ orders, bookings })
+      })
+      .catch((err) => !ignore && setError(err.message))
+    return () => { ignore = true }
+  }, [customer])
 
   const handleChange = (event) => {
     const { name, value } = event.target
@@ -54,7 +73,8 @@ const MyBookings = () => {
     setError('')
     setCancellingId(booking._id)
     try {
-      const updated = await patchJSON(`/api/reservations/${booking._id}/cancel`, form)
+      // The booking's own email + phone prove it is ours (works for guests and logged-in customers)
+      const updated = await patchJSON(`/api/reservations/${booking._id}/cancel`, { email: booking.email, phone: booking.phone })
       setResults((prev) => ({ ...prev, bookings: prev.bookings.map((b) => (b._id === updated._id ? updated : b)) }))
     } catch (err) {
       setError(err.message)
@@ -69,9 +89,19 @@ const MyBookings = () => {
         <div className='text-center mb-8'>
           <h1 className='text-3xl sm:text-4xl text-dark font-bold mb-4'>My Orders & Bookings</h1>
           <div className='w-20 h-1 bg-primary mx-auto mb-4'></div>
-          <p className='text-gray-700'>Enter the email and phone number you used while ordering or booking</p>
+          <p className='text-gray-700'>
+            {customer ? `Logged in as ${customer.name} (${customer.email})` : 'Enter the email and phone number you used while ordering or booking'}
+          </p>
+          {!customer && (
+            <p className='mt-2 text-sm text-gray-600'>
+              <Link to='/login?next=/my-bookings' className='font-semibold text-primary'>Log in</Link> to see your orders without typing these every time.
+            </p>
+          )}
         </div>
 
+        {customer && !results && !error && <p className='text-center text-gray-700'>Loading your orders...</p>}
+
+        {!customer && (
         <form onSubmit={handleSubmit} className='mb-8 rounded bg-gray-50 p-6 shadow'>
           <div className='grid grid-cols-1 gap-x-6 md:grid-cols-2'>
             <InputField label='Email' name='email' type='email' value={form.email} onChange={handleChange} placeholder='you@example.com' required />
@@ -81,6 +111,7 @@ const MyBookings = () => {
             {isLoading ? 'Searching...' : 'Show My Orders & Bookings'}
           </button>
         </form>
+        )}
 
         {error && <p className='mb-6 text-center text-red-600'>{error}</p>}
 

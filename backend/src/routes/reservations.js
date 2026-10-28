@@ -15,7 +15,7 @@
 import { Router } from 'express'
 import Reservation from '../models/Reservation.js'
 import Restaurant from '../models/Restaurant.js'
-import { requireAdmin } from '../middleware/auth.js'
+import { optionalCustomer, requireAdmin } from '../middleware/auth.js'
 import { isValidPhone, isWithinHours, nowHHMM, phoneDigits, todayISO } from '../utils.js'
 
 const router = Router()
@@ -34,7 +34,7 @@ const findCustomerBookings = async (email, phone) => {
 // ---------- Public ----------
 
 // Create a new reservation (optionally for a specific restaurant)
-router.post('/', async (req, res) => {
+router.post('/', optionalCustomer, async (req, res) => {
   const { restaurant: restaurantId, fullname, email, phone, date, time, partySize, tableRef, specialRequest } = req.body
 
   if (date && date < today()) {
@@ -70,6 +70,7 @@ router.post('/', async (req, res) => {
 
   const reservation = await Reservation.create({
     restaurant: restaurant?._id ?? null,
+    account: req.customer?.id ?? null,
     fullname, email, phone, date, time, partySize, tableRef, specialRequest,
   })
   await reservation.populate('restaurant', 'name address')

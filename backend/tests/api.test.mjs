@@ -35,6 +35,15 @@ const call = async (method, path, body, token) => {
   })
   return { status: res.status, data: await res.json().catch(() => ({})) }
 }
+// Same as call(), but logged in as a customer (token goes in X-Customer-Token)
+const callAs = async (customerToken, method, path, body) => {
+  const res = await fetch(B + path, {
+    method,
+    headers: { 'Content-Type': 'application/json', 'X-Customer-Token': customerToken },
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  return { status: res.status, data: await res.json().catch(() => ({})) }
+}
 const sign = (o, p, secret = SECRET) => crypto.createHmac('sha256', secret).update(`${o}|${p}`).digest('hex')
 
 // ---------- setup ----------
@@ -137,6 +146,47 @@ try {
     r = await call('PATCH', `/orders/${pid}/refunded`, null, token)
     check('admin marks refund done', r.data.paymentStatus === 'refunded')
   }
+
+  // ---------- customer accounts ----------
+  const signup = { name: 'Ravi', email: 'ravi@test.com', phone: '9876543210', password: 'ravi1234' }
+  r = await call('POST', '/customers/signup', { ...signup, phone: '12' })
+  check('signup with invalid phone is rejected', r.status === 400)
+  r = await call('POST', '/customers/signup', { ...signup, password: '123' })
+  check('signup with short password is rejected', r.status === 400)
+  r = await call('POST', '/customers/signup', signup)
+  check('customer signs up', r.status === 201 && r.data.token && !('password' in r.data.customer), JSON.stringify(r.data))
+  r = await call('POST', '/customers/signup', signup)
+  check('same email cannot sign up twice', r.status === 409)
+  r = await call('POST', '/customers/login', { email: 'RAVI@test.com', password: 'wrong' })
+  check('customer login with wrong password fails', r.status === 401)
+  r = await call('POST', '/customers/login', { email: 'RAVI@test.com', password: 'ravi1234' })
+  check('customer logs in', r.status === 200 && !!r.data.token)
+  const ctoken = r.data.token
+  r = await callAs(ctoken, 'GET', '/customers/me/orders')
+  check('my orders include earlier guest orders (same email + phone)', r.status === 200 && r.data.length >= 1, JSON.stringify(r.data).slice(0, 200))
+  const before = r.data.length
+  r = await callAs(ctoken, 'POST', '/orders', { restaurant: ord, items: [{ menuItem: o1._id, quantity: 1 }], customer: { ...customer, phone: '9000000000', email: 'other@test.com' }, address })
+  check('order placed while logged in', r.status === 201, JSON.stringify(r.data))
+  r = await callAs(ctoken, 'GET', '/customers/me/orders')
+  check('order placed while logged in shows in my orders (even with other contact details)', r.data.length === before + 1)
+  r = await callAs(ctoken, 'GET', '/customers/me/bookings')
+  check('my bookings work', r.status === 200 && r.data.length >= 1)
+  r = await callAs('not-a-token', 'GET', '/customers/me')
+  check('fake customer token is rejected', r.status === 401)
+  r = await call('GET', '/orders', null, ctoken)
+  check('customer token cannot open admin APIs', r.status === 401)
+  const { data: { token: adminToken } } = await call('POST', '/auth/login', { email: 'admin@test.com', password: 'secret123' })
+  r = await callAs(adminToken, 'GET', '/customers/me')
+  check('admin token cannot be used as a customer', r.status === 401)
+
+  // ---------- admin dashboard stats ----------
+  r = await call('GET', '/stats')
+  check('stats need admin login', r.status === 401)
+  r = await call('GET', '/stats', null, adminToken)
+  check('stats: 7 days, today has sales, top dishes listed',
+    r.status === 200 && r.data.last7Days.length === 7 && r.data.today.orders >= 1 && r.data.today.revenue > 0 && r.data.topDishes.length >= 1,
+    JSON.stringify(r.data).slice(0, 300))
+  check('stats: cancelled orders are not counted as sales', r.data.allTime.orders === r.data.last7Days.reduce((s, d) => s + d.orders, 0))
 
   // ---------- security ----------
   r = await call('POST', '/menu', { restaurant: rid, name: 'X', price: 1 })

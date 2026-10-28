@@ -21,7 +21,7 @@ import { Router } from 'express'
 import Order, { ORDER_STATUSES } from '../models/Order.js'
 import Restaurant from '../models/Restaurant.js'
 import MenuItem from '../models/MenuItem.js'
-import { requireAdmin } from '../middleware/auth.js'
+import { optionalCustomer, requireAdmin } from '../middleware/auth.js'
 import { distanceKm, isOpenNow, isValidPhone, phoneDigits } from '../utils.js'
 import {
   checkoutOptions, createRazorpayOrder, findCapturedPayment, isValidPaymentSignature, paymentsEnabled,
@@ -141,7 +141,7 @@ router.post('/quote', async (req, res) => {
   }
 })
 
-router.post('/', async (req, res) => {
+router.post('/', optionalCustomer, async (req, res) => {
   let bill
   try {
     bill = await buildBill(req.body)
@@ -170,6 +170,7 @@ router.post('/', async (req, res) => {
     // Short readable order number: "FF" + time in base-36 + 2 random digits
     orderNumber: `FF${Date.now().toString(36).toUpperCase()}${Math.floor(Math.random() * 90 + 10)}`,
     restaurant: restaurant._id,
+    account: req.customer?.id ?? null,
     items: bill.items,
     customer: { name: customer.name, email: customer.email, phone: customer.phone },
     address: { line: address.line, landmark: address.landmark },

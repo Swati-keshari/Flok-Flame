@@ -28,6 +28,8 @@ const orderSchema = new mongoose.Schema(
   {
     orderNumber: { type: String, required: true, unique: true },
     restaurant: { type: mongoose.Schema.Types.ObjectId, ref: 'Restaurant', required: true },
+    // The logged-in customer account that placed it (empty for guest orders)
+    account: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', default: null, index: true },
     items: {
       type: [orderItemSchema],
       validate: [(items) => items.length > 0, 'Order must have at least one item'],

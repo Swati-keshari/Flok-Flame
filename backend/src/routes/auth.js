@@ -4,41 +4,21 @@
 //   POST /api/auth/login  -> check email + password, return a login token (JWT)
 //   GET  /api/auth/me     -> who is logged in (admin only)
 // Also blocks password guessing: 5 wrong tries = wait 15 minutes.
+// (Customer accounts are in routes/customers.js.)
 // =============================================================
 
 import { Router } from 'express'
 import jwt from 'jsonwebtoken'
 import Admin from '../models/Admin.js'
 import { requireAdmin } from '../middleware/auth.js'
+import { createLoginLimiter, TOO_MANY_ATTEMPTS } from '../middleware/loginLimiter.js'
 
 const router = Router()
-
-// Blocks password guessing: 5 wrong attempts per IP, then wait 15 minutes
-const MAX_FAILED = 5
-const BLOCK_MS = 15 * 60 * 1000
-const failedLogins = new Map() // ip -> { count, firstAt }
-
-const isBlocked = (ip) => {
-  const entry = failedLogins.get(ip)
-  if (!entry) return false
-  if (Date.now() - entry.firstAt > BLOCK_MS) {
-    failedLogins.delete(ip)
-    return false
-  }
-  return entry.count >= MAX_FAILED
-}
-
-const recordFailure = (ip) => {
-  const entry = failedLogins.get(ip)
-  if (!entry || Date.now() - entry.firstAt > BLOCK_MS) failedLogins.set(ip, { count: 1, firstAt: Date.now() })
-  else entry.count += 1
-}
+const limiter = createLoginLimiter()
 
 router.post('/login', async (req, res) => {
   const ip = req.ip
-  if (isBlocked(ip)) {
-    return res.status(429).json({ message: 'Too many wrong attempts. Please try again after 15 minutes.' })
-  }
+  if (limiter.isBlocked(ip)) return res.status(429).json({ message: TOO_MANY_ATTEMPTS })
 
   const email = req.body.email?.trim().toLowerCase()
   const { password } = req.body
@@ -46,12 +26,13 @@ router.post('/login', async (req, res) => {
 
   const admin = await Admin.findOne({ email }).select('+password')
   if (!admin || !(await admin.checkPassword(password))) {
-    recordFailure(ip)
+    limiter.recordFailure(ip)
     return res.status(401).json({ message: 'Wrong email or password' })
   }
-  failedLogins.delete(ip)
+  limiter.reset(ip)
 
-  const token = jwt.sign({ id: admin._id, email: admin.email }, process.env.JWT_SECRET, { expiresIn: '7d' })
+  // role: 'admin' so this token can never be used as a customer token (and the other way round)
+  const token = jwt.sign({ id: admin._id, email: admin.email, role: 'admin' }, process.env.JWT_SECRET, { expiresIn: '7d' })
   res.json({ token, admin: { name: admin.name, email: admin.email } })
 })
 

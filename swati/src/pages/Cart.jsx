@@ -16,6 +16,7 @@ import InputField from '../components/InputField'
 import QuantityControl from '../components/QuantityControl'
 import VegIcon from '../components/VegIcon'
 import { loadDeliveryDetails, rememberOrder, saveDeliveryDetails } from '../utils/recentOrders'
+import { useCustomer } from '../context/customerContext'
 import { payForOrder } from '../utils/razorpay'
 import useFetch from '../hooks/useFetch'
 
@@ -24,7 +25,14 @@ const emptyDetails = { name: '', email: '', phone: '', line: '', landmark: '', n
 const Cart = () => {
   const cart = useCart()
   const navigate = useNavigate()
-  const [details, setDetails] = useState(() => ({ ...emptyDetails, ...loadDeliveryDetails(), note: '' }))
+  const { customer } = useCustomer()
+  // Prefill: last used address, and name/email/phone from the account when logged in
+  const [details, setDetails] = useState(() => ({
+    ...emptyDetails,
+    ...loadDeliveryDetails(),
+    ...(customer && { name: customer.name, email: customer.email, phone: customer.phone }),
+    note: '',
+  }))
   const [location, setLocation] = useState(null)
   const [locating, setLocating] = useState(false)
   const [quote, setQuote] = useState({ key: null, bill: null, error: '' })
@@ -123,6 +131,11 @@ const Cart = () => {
           <div className='lg:w-3/5'>
             <div className='rounded-lg bg-white p-6 shadow'>
               <h2 className='mb-4 text-xl font-bold text-dark'>Delivery details</h2>
+              {!customer && (
+                <p className='mb-4 -mt-2 text-sm text-gray-600'>
+                  <Link to='/login?next=/cart' className='font-semibold text-primary'>Log in</Link> to fill these in automatically and keep all your orders in one place.
+                </p>
+              )}
               <div className='grid grid-cols-1 gap-x-6 md:grid-cols-2'>
                 <InputField label='Full Name' name='name' value={details.name} onChange={handleChange} placeholder='Your name' required />
                 <InputField label='Phone' name='phone' type='tel' value={details.phone} onChange={handleChange} placeholder='For the delivery partner' required />

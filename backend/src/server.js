@@ -18,6 +18,8 @@ import restaurantRoutes from './routes/restaurants.js'
 import authRoutes from './routes/auth.js'
 import menuRoutes from './routes/menu.js'
 import orderRoutes from './routes/orders.js'
+import customerRoutes from './routes/customers.js'
+import statsRoutes from './routes/stats.js'
 
 if (!process.env.JWT_SECRET) {
   console.error('JWT_SECRET is missing in .env')
@@ -41,6 +43,8 @@ app.use('/api/restaurants', restaurantRoutes)
 app.use('/api/auth', authRoutes)
 app.use('/api/menu', menuRoutes)
 app.use('/api/orders', orderRoutes)
+app.use('/api/customers', customerRoutes)
+app.use('/api/stats', statsRoutes)
 
 // Mongoose validation errors -> 400, everything else -> 500
 app.use((err, req, res, next) => {

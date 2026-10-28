@@ -15,13 +15,15 @@ backend/
 │   ├── utils.js          → small helpers: phone check, Indian time, open/closed check, distance in km
 │   ├── payments.js       → everything Razorpay: create payment, verify signature, check if already paid
 │   ├── middleware/
-│   │   └── auth.js       → checks the admin login token on admin-only routes
+│   │   ├── auth.js         → checks login tokens: requireAdmin, requireCustomer, optionalCustomer
+│   │   └── loginLimiter.js → blocks an IP for 15 min after 5 wrong passwords
 │   ├── models/           → MongoDB collections (what each saved document looks like)
 │   │   ├── Restaurant.js   restaurants with map location, hours, tables, delivery range
 │   │   ├── MenuItem.js     dishes of a restaurant
 │   │   ├── Order.js        food orders, bill, payment and status history
 │   │   ├── Reservation.js  table bookings
 │   │   ├── Message.js      contact form messages
+│   │   ├── Customer.js     customer accounts (password stored as a hash)
 │   │   ├── Subscriber.js   newsletter emails
 │   │   └── Admin.js        admin users (password stored as a hash)
 │   ├── routes/           → the API endpoints, one file per topic
@@ -31,7 +33,9 @@ backend/
 │   │   ├── reservations.js /api/reservations  book a table, my bookings, admin list
 │   │   ├── contact.js      /api/contact       contact messages
 │   │   ├── newsletter.js   /api/newsletter    newsletter subscribe
-│   │   └── auth.js         /api/auth          admin login (blocks after 5 wrong tries)
+│   │   ├── auth.js         /api/auth          admin login (blocks after 5 wrong tries)
+│   │   ├── customers.js    /api/customers     customer sign up / log in, my orders, my bookings
+│   │   └── stats.js        /api/stats         admin dashboard numbers (sales, top dishes, ...)
 │   ├── sampleRestaurants.js → 12 demo restaurants placed around a given location
 │   ├── sampleMenus.js    → demo menus, picked by cuisine
 │   ├── seed.js           → `npm run seed`: replace all restaurants with the demo ones
@@ -72,4 +76,5 @@ backend/
 - Opening hours use Indian time and can go past midnight (e.g. 11:00–03:00). Same open and close time = open 24 hours.
 - Online payments are confirmed only after the Razorpay signature is checked with the secret key.
 - Customers prove an order or booking is theirs with the phone number (and email) used.
-- Admin routes need a login token. Login is blocked for 15 minutes after 5 wrong passwords.
+- Admin routes need an admin login token; customer routes need a customer token. Each token carries its role, so one can never be used as the other.
+- Logins (admin and customer) are blocked for 15 minutes after 5 wrong passwords.

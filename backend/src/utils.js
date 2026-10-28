@@ -10,7 +10,7 @@ export const phoneDigits = (value = '') => String(value).replace(/\D/g, '').slic
 export const isValidPhone = (value) => phoneDigits(value).length === 10
 
 // Restaurant hours and booking dates are in Indian time, whatever timezone the server runs in
-const TIMEZONE = process.env.TIMEZONE || 'Asia/Kolkata'
+export const TIMEZONE = process.env.TIMEZONE || 'Asia/Kolkata'
 
 const nowParts = () => {
   const parts = new Intl.DateTimeFormat('en-CA', {

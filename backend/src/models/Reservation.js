@@ -10,6 +10,8 @@ const reservationSchema = new mongoose.Schema(
   {
     // Empty for bookings made from the Fork & Flame home page form
     restaurant: { type: mongoose.Schema.Types.ObjectId, ref: 'Restaurant', default: null },
+    // The logged-in customer account that booked it (empty for guest bookings)
+    account: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', default: null, index: true },
     fullname: { type: String, required: [true, 'Name is required'], trim: true },
     email: {
       type: String,
