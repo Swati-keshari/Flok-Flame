@@ -3,6 +3,7 @@
 // Mounted at /api/stats in server.js. Admin only.
 //   GET /api/stats -> today's sales, all-time sales, last 7 days, top dishes,
 //                     top restaurants, and counts of things that need attention.
+//   GET /api/stats/orders.csv?from=YYYY-MM-DD&to=YYYY-MM-DD -> orders as a CSV file (opens in Excel)
 // "Sales" only count real orders: cancelled orders and unpaid online orders
 // (status awaiting_payment) are left out. Days are in Indian time (TIMEZONE).
 // =============================================================
@@ -80,6 +81,38 @@ router.get('/', requireAdmin, async (req, res) => {
     topDishes: topDishes.map((d) => ({ name: d._id, quantity: d.quantity, revenue: d.revenue })),
     topRestaurants: topRestaurants.map((r) => ({ name: r.restaurant[0]?.name || 'Deleted restaurant', orders: r.orders, revenue: r.revenue })),
   })
+})
+
+// CSV cell: wrap in quotes, double any quotes, and stop Excel from running
+// text that starts with = + - @ as a formula
+const csvCell = (value) => {
+  let text = value === null || value === undefined ? '' : String(value)
+  if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`
+  return `"${text.replace(/"/g, '""')}"`
+}
+
+router.get('/orders.csv', requireAdmin, async (req, res) => {
+  const isDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d || '')
+  const to = isDate(req.query.to) ? req.query.to : todayISO()
+  const from = isDate(req.query.from) ? req.query.from : dateIn(new Date(Date.now() - 29 * DAY_MS))
+  const orders = await Order.aggregate([
+    { $addFields: { day: orderDay } },
+    { $match: { day: { $gte: from, $lte: to } } },
+    { $sort: { createdAt: 1 } },
+    { $lookup: { from: 'restaurants', localField: 'restaurant', foreignField: '_id', as: 'r' } },
+  ])
+  const header = ['Order number', 'Date', 'Time', 'Restaurant', 'Customer', 'Phone', 'Items', 'Item total', 'Coupon', 'Discount', 'Delivery fee', 'GST', 'Total', 'Payment', 'Payment status', 'Status']
+  const time = (d) => new Intl.DateTimeFormat('en-IN', { timeZone: TIMEZONE, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(d)
+  const rows = orders.map((o) => [
+    o.orderNumber, o.day, time(o.createdAt), o.r[0]?.name || '', o.customer.name, o.customer.phone,
+    o.items.map((i) => `${i.name} x${i.quantity}`).join('; '), o.subtotal, o.couponCode || '', o.discount || 0,
+    o.deliveryFee, o.tax, o.total, o.paymentMethod === 'online' ? 'Online' : 'Cash on Delivery', o.paymentStatus, o.status,
+  ])
+  // \uFEFF at the start makes Excel read the ₹ and Hindi text correctly
+  const csv = '\uFEFF' + [header, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n')
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+  res.setHeader('Content-Disposition', `attachment; filename="orders-${from}-to-${to}.csv"`)
+  res.send(csv)
 })
 
 export default router

@@ -73,7 +73,7 @@ const RestaurantMenu = ({ restaurant }) => {
                   {item.description && <p className='mt-1 text-sm text-gray-600'>{item.description}</p>}
                 </div>
                 <div className='flex shrink-0 flex-col items-center gap-1'>
-                  {item.image && <img src={item.image} alt={item.name} className='mb-1 h-20 w-24 rounded object-cover' />}
+                  {item.image && <img src={item.image} alt={item.name} loading='lazy' className='mb-1 h-20 w-20 rounded-lg object-cover sm:w-24' />}
                   {item.isAvailable ? (
                     <QuantityControl
                       label={item.name}

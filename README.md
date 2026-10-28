@@ -3,13 +3,14 @@
 A restaurant website with a backend. Customers can:
 
 - see restaurants near their current location on a map,
-- **order food online** (cart, checkout, Cash on Delivery or online payment with Razorpay),
+- **order food online** (cart, coupon codes like FIRST50, saved addresses, Cash on Delivery or online payment with Razorpay),
 - **book a table**,
 - create an account (sign up / log in) so all their orders and bookings are in one place,
-- track their order and see all their orders and bookings,
+- track their order, download a printable bill, reorder in one click, and rate delivered orders,
+- get emails when an order or booking changes,
 - send a contact message and subscribe to the newsletter.
 
-An **admin panel** (`/admin` or `/owner`) shows a sales dashboard and lets the owner manage orders, bookings, restaurants, menus, messages and subscribers.
+An **admin panel** (`/admin` or `/owner`) shows a sales dashboard (with a new-order bell and CSV export) and lets the owner manage orders, coupons, dish photos, bookings, restaurants, menus, messages and subscribers.
 
 ## Folders
 
@@ -72,9 +73,13 @@ npm install
 | `/my-bookings` | My orders & bookings (automatic when logged in, otherwise find with email + phone) |
 | `/admin` (or `/owner`) | Admin panel with sales dashboard (login needed) |
 
+## Putting it online
+
+See **[DEPLOY.md](DEPLOY.md)** (MongoDB Atlas + Render + Vercel, all free).
+
 ## Tests
 
 ```bash
 cd backend
-npm test        # 47 API checks on a separate test database
+npm test        # 74 API checks on a separate test database
 ```

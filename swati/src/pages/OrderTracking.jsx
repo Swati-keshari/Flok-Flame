@@ -3,6 +3,7 @@
 // - Refreshes every 15 seconds while the order is still active.
 // - "Payment pending" box with a Pay now button for unpaid online orders.
 // - Cancel button while the restaurant hasn't started preparing.
+// - After delivery: "Rate your order" card (RateOrder). "Download bill" opens /orders/:id/bill.
 // The backend only shows an order to someone who knows its phone number, so we use the
 // phone saved in this browser (utils/recentOrders) or ask for it.
 
@@ -13,6 +14,7 @@ import { patchJSON } from '../api'
 import useFetch from '../hooks/useFetch'
 import InputField from '../components/InputField'
 import VegIcon from '../components/VegIcon'
+import RateOrder from '../components/RateOrder'
 import { ORDER_STEPS, isActiveOrder, paymentLabel } from '../utils/orderStatus'
 import { phoneForOrder, rememberOrder } from '../utils/recentOrders'
 import { retryPayment } from '../utils/razorpay'
@@ -148,6 +150,7 @@ const OrderDetails = ({ id, phone, onChangePhone }) => {
               {isCancelling ? 'Cancelling...' : 'Cancel order'}
             </button>
           )}
+          {order.status === 'delivered' && <RateOrder orderId={id} phone={phone} />}
         </div>
       </div>
 
@@ -164,6 +167,9 @@ const OrderDetails = ({ id, phone, onChangePhone }) => {
           </ul>
           <dl className='space-y-1 border-t pt-3 text-sm'>
             <div className='flex justify-between'><dt>Item total</dt><dd>₹{order.subtotal}</dd></div>
+            {order.discount > 0 && (
+              <div className='flex justify-between text-green-700'><dt>Coupon {order.couponCode}</dt><dd>−₹{order.discount}</dd></div>
+            )}
             <div className='flex justify-between'><dt>Delivery fee</dt><dd>{order.deliveryFee ? `₹${order.deliveryFee}` : 'FREE'}</dd></div>
             <div className='flex justify-between'><dt>GST</dt><dd>₹{order.tax}</dd></div>
             <div className='flex justify-between border-t pt-2 font-bold text-dark'><dt>Total</dt><dd>₹{order.total}</dd></div>
@@ -175,6 +181,7 @@ const OrderDetails = ({ id, phone, onChangePhone }) => {
           <p className='text-sm text-gray-700'>{order.customer.name} · {order.customer.phone}</p>
           <p className='text-sm text-gray-700'>{order.address.line}{order.address.landmark && `, near ${order.address.landmark}`}</p>
           {order.note && <p className='mt-2 text-sm italic text-gray-600'>Note: {order.note}</p>}
+          <Link to={`/orders/${order._id}/bill`} className='mt-4 inline-block font-semibold text-primary'>Download bill →</Link>
         </div>
       </div>
     </div>

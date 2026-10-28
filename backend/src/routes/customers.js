@@ -6,6 +6,8 @@
 //   GET  /api/customers/me           -> my profile            (logged in)
 //   GET  /api/customers/me/orders    -> my food orders        (logged in)
 //   GET  /api/customers/me/bookings  -> my table bookings     (logged in)
+//   POST   /api/customers/me/addresses     -> save a delivery address (logged in)
+//   DELETE /api/customers/me/addresses/:id -> remove a saved address  (logged in)
 // The token is sent back in the "X-Customer-Token" header (see middleware/auth.js).
 // Wrong passwords are limited the same way as admin login (5 tries, then 15 min wait).
 // =============================================================
@@ -80,6 +82,29 @@ router.get('/me/bookings', requireCustomer, async (req, res) => {
     .populate('restaurant', 'name address')
     .sort({ date: -1, time: -1 })
   res.json(bookings.filter((b) => isMine(customer, b, b.phone)))
+})
+
+const MAX_ADDRESSES = 5
+
+router.post('/me/addresses', requireCustomer, async (req, res) => {
+  const customer = await Customer.findById(req.customer.id)
+  if (!customer) return res.status(401).json({ message: 'Account not found, please log in again' })
+  const { label, line, landmark } = req.body
+  if (!line?.trim()) return res.status(400).json({ message: 'Address is required' })
+  if (customer.addresses.length >= MAX_ADDRESSES) {
+    return res.status(400).json({ message: `You can save up to ${MAX_ADDRESSES} addresses. Remove one first.` })
+  }
+  customer.addresses.push({ label: label?.trim() || 'Home', line, landmark })
+  await customer.save()
+  res.status(201).json(customer.toPublic())
+})
+
+router.delete('/me/addresses/:addressId', requireCustomer, async (req, res) => {
+  const customer = await Customer.findById(req.customer.id)
+  if (!customer) return res.status(401).json({ message: 'Account not found, please log in again' })
+  customer.addresses.pull({ _id: req.params.addressId })
+  await customer.save()
+  res.json(customer.toPublic())
 })
 
 export default router

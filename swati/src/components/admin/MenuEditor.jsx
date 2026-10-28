@@ -1,12 +1,18 @@
 // MenuEditor: manage one restaurant's dishes (opened from RestaurantsTab → Menu).
 // Add / edit / delete dishes and toggle "In stock" / "Sold out".
 // Props: restaurant, onClose, onUnauthorized.
+// Each dish can have a photo (uploaded with ImageUpload, saved as the dish's `image`).
 
 import { useState } from 'react'
 import { deleteJSON, postJSON, putJSON } from '../../api'
 import useFetch from '../../hooks/useFetch'
 import InputField from '../InputField'
 import VegIcon from '../VegIcon'
+import ImageUpload from './ImageUpload'
+
+// Uploaded photos are "/uploads/..." on the backend; in production that is VITE_API_URL
+const API_URL = import.meta.env.VITE_API_URL || ''
+const photoSrc = (url) => (url?.startsWith('/uploads/') ? `${API_URL}${url}` : url)
 
 const emptyItem = { name: '', price: '', category: '', description: '', isVeg: true, image: '' }
 
@@ -94,9 +100,16 @@ const MenuEditor = ({ restaurant, onClose, onUnauthorized }) => {
                 {categories.map((c) => <option key={c} value={c} />)}
               </datalist>
             </div>
-            <InputField label='Image URL (optional)' name='image' type='url' value={form.image} onChange={handleChange} />
             <div className='mb-4 md:col-span-2'>
               <InputField label='Description' name='description' value={form.description} onChange={handleChange} />
+            </div>
+            <div className='md:col-span-2'>
+              <ImageUpload
+                label='Dish photo (optional)'
+                value={form.image}
+                onChange={(url) => setForm((prev) => ({ ...prev, image: url }))}
+                onUnauthorized={onUnauthorized}
+              />
             </div>
           </div>
           <label className='mb-4 flex items-center gap-2 font-semibold text-dark'>
@@ -120,6 +133,11 @@ const MenuEditor = ({ restaurant, onClose, onUnauthorized }) => {
           {menu.map((item) => (
             <li key={item._id} className='flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between'>
               <div className={`flex items-center gap-2 ${item.isAvailable ? '' : 'opacity-50'}`}>
+                {item.image ? (
+                  <img src={photoSrc(item.image)} alt='' className='h-12 w-12 shrink-0 rounded object-cover' />
+                ) : (
+                  <div className='flex h-12 w-12 shrink-0 items-center justify-center rounded bg-gray-100 text-[10px] text-gray-400'>No photo</div>
+                )}
                 <VegIcon isVeg={item.isVeg} />
                 <span className='font-semibold text-dark'>{item.name}</span>
                 <span className='text-sm text-gray-500'>· {item.category} · ₹{item.price}</span>

@@ -3,6 +3,7 @@
 // - Filters by status / restaurant, including "Awaiting payment" and "Refunds due".
 // - One button moves each order to its next step (Accept → Out for delivery → Delivered).
 // - Cancel, and "Mark refunded" after refunding a paid order from the Razorpay dashboard.
+// - "Bill" opens a printable bill for the order in a new tab.
 // Prop: onUnauthorized (called when the admin session has expired).
 
 import { useEffect, useState } from 'react'
@@ -149,6 +150,15 @@ const OrdersTab = ({ onUnauthorized }) => {
                   {o.razorpayPaymentId && <span className='block text-xs font-normal text-gray-500'>{o.razorpayPaymentId}</span>}
                 </p>
                 <div className='flex flex-wrap gap-2'>
+                  {/* printable bill (opens in a new tab, Ctrl+P / Save as PDF there) */}
+                  <a
+                    href={`/orders/${o._id}/bill?admin=1`}
+                    target='_blank'
+                    rel='noreferrer'
+                    className='rounded border border-gray-400 px-3 py-1.5 text-sm font-semibold text-dark hover:border-dark'
+                  >
+                    Bill
+                  </a>
                   {o.paymentStatus === 'refund_needed' && (
                     <button
                       type='button'

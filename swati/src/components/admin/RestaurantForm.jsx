@@ -1,10 +1,12 @@
 // RestaurantForm: add or edit a restaurant (used by RestaurantsTab).
 // The location is picked by clicking on the map (LocationPicker) or "Use my current location".
-// Props: restaurant (null when adding), onSave(formData), onCancel.
+// Props: restaurant (null when adding), onSave(formData), onCancel, onUnauthorized.
+// The restaurant photo is uploaded with ImageUpload (saved as `image`).
 
 import { useState } from 'react'
 import InputField from '../InputField'
 import LocationPicker from './LocationPicker'
+import ImageUpload from './ImageUpload'
 
 const emptyForm = {
   name: '',
@@ -32,7 +34,7 @@ const toForm = (r) => ({
   lng: r.location?.coordinates[0] ?? '',
 })
 
-const RestaurantForm = ({ restaurant, onSave, onCancel }) => {
+const RestaurantForm = ({ restaurant, onSave, onCancel, onUnauthorized }) => {
   const [form, setForm] = useState(restaurant ? toForm(restaurant) : emptyForm)
   const [error, setError] = useState('')
   const [isSaving, setIsSaving] = useState(false)
@@ -79,7 +81,6 @@ const RestaurantForm = ({ restaurant, onSave, onCancel }) => {
         <InputField label='Address' name='address' value={form.address} onChange={handleChange} placeholder='Street, area' required />
         <InputField label='City' name='city' value={form.city} onChange={handleChange} placeholder='City' />
         <InputField label='Phone' name='phone' type='tel' value={form.phone} onChange={handleChange} placeholder='+91 ...' />
-        <InputField label='Image URL (optional)' name='image' type='url' value={form.image} onChange={handleChange} placeholder='https://...' />
         <InputField label='Rating (0-5)' name='rating' type='number' value={form.rating} onChange={handleChange} minValue='0' step='0.1' />
         <InputField label='Price for two (₹)' name='priceForTwo' type='number' value={form.priceForTwo} onChange={handleChange} minValue='0' />
         <InputField label='Opens at' name='openTime' type='time' value={form.openTime} onChange={handleChange} required />
@@ -89,6 +90,14 @@ const RestaurantForm = ({ restaurant, onSave, onCancel }) => {
         <div className='mb-4 md:col-span-2'>
           <label htmlFor='description' className='block text-dark mb-2 font-semibold'>Description</label>
           <textarea id='description' name='description' value={form.description} onChange={handleChange} rows='2' className='w-full px-4 py-2 rounded border' />
+        </div>
+        <div className='md:col-span-2'>
+          <ImageUpload
+            label='Restaurant photo (optional)'
+            value={form.image}
+            onChange={(url) => setForm((prev) => ({ ...prev, image: url }))}
+            onUnauthorized={onUnauthorized}
+          />
         </div>
       </div>
 

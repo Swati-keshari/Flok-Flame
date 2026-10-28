@@ -20,6 +20,8 @@ import menuRoutes from './routes/menu.js'
 import orderRoutes from './routes/orders.js'
 import customerRoutes from './routes/customers.js'
 import statsRoutes from './routes/stats.js'
+import couponRoutes from './routes/coupons.js'
+import uploadRoutes, { UPLOAD_DIR } from './routes/uploads.js'
 
 if (!process.env.JWT_SECRET) {
   console.error('JWT_SECRET is missing in .env')
@@ -30,6 +32,10 @@ const app = express()
 const PORT = process.env.PORT || 5000
 
 // CORS: only our own frontend (CLIENT_URL) may call this API from a browser
+// On Render/Vercel the request comes through their proxy; trust it so req.ip is the
+// real visitor (the login limiter counts wrong passwords per IP)
+if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1)
+
 app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173' }))
 // Lets route handlers read JSON bodies as req.body
 app.use(express.json())
@@ -45,6 +51,10 @@ app.use('/api/menu', menuRoutes)
 app.use('/api/orders', orderRoutes)
 app.use('/api/customers', customerRoutes)
 app.use('/api/stats', statsRoutes)
+app.use('/api/coupons', couponRoutes)
+app.use('/api/uploads', uploadRoutes)
+// Uploaded dish / restaurant photos (only image files the server named itself live here)
+app.use('/uploads', express.static(UPLOAD_DIR, { maxAge: '7d' }))
 
 // Mongoose validation errors -> 400, everything else -> 500
 app.use((err, req, res, next) => {

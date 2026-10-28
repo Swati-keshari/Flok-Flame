@@ -3,8 +3,10 @@
 // attention, a 7-day sales bar chart, top dishes and top restaurants.
 // Refreshes every 30 seconds. Prop: onUnauthorized (log out if the session expired).
 // Sales leave out cancelled orders and unpaid online orders (the server decides this).
+// At the bottom: download orders between two dates as a CSV file (opens in Excel).
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { getToken } from '../../api'
 import { useAdminFetch } from '../../hooks/useFetch'
 
 const REFRESH_MS = 30000
@@ -121,6 +123,66 @@ const RankList = ({ title, rows, valueOf, labelOf, empty }) => {
   )
 }
 
+const API_URL = import.meta.env.VITE_API_URL || ''
+// Local date as YYYY-MM-DD
+const localDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+// "Download orders" box. The CSV needs the admin token, so a plain link won't work:
+// we fetch it with the token, then hand the file to the browser as a download.
+const CsvDownload = ({ onUnauthorized }) => {
+  const [from, setFrom] = useState(() => localDate(new Date(Date.now() - 29 * 24 * 60 * 60 * 1000)))
+  const [to, setTo] = useState(() => localDate(new Date()))
+  const [isDownloading, setIsDownloading] = useState(false)
+  const [error, setError] = useState('')
+
+  const download = async (event) => {
+    event.preventDefault()
+    if (from > to) return setError('"From" date must be before "To" date')
+    setError('')
+    setIsDownloading(true)
+    try {
+      const res = await fetch(`${API_URL}/api/stats/orders.csv?from=${from}&to=${to}`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      })
+      if (res.status === 401) return onUnauthorized()
+      if (!res.ok) throw new Error('Download failed, please try again')
+      const url = URL.createObjectURL(await res.blob())
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `orders-${from}-to-${to}.csv`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setIsDownloading(false)
+    }
+  }
+
+  return (
+    <form onSubmit={download} className='rounded-lg bg-white p-5 shadow'>
+      <h2 className='mb-1 text-lg font-bold text-dark'>Download orders (Excel / CSV)</h2>
+      <p className='mb-4 text-sm text-gray-600'>One row per order: items, coupon, discount, GST, total, payment and status.</p>
+      <div className='flex flex-col gap-3 sm:flex-row sm:items-end'>
+        <label className='text-sm font-semibold text-dark'>
+          From
+          <input type='date' value={from} max={to} onChange={(e) => setFrom(e.target.value)} required className='mt-1 block w-full rounded border px-3 py-2 font-normal' />
+        </label>
+        <label className='text-sm font-semibold text-dark'>
+          To
+          <input type='date' value={to} min={from} onChange={(e) => setTo(e.target.value)} required className='mt-1 block w-full rounded border px-3 py-2 font-normal' />
+        </label>
+        <button type='submit' disabled={isDownloading} className='rounded bg-accent px-5 py-2 font-semibold text-white disabled:opacity-60'>
+          {isDownloading ? 'Preparing...' : 'Download CSV'}
+        </button>
+      </div>
+      {error && <p className='mt-3 text-sm text-red-600'>{error}</p>}
+    </form>
+  )
+}
+
 const DashboardTab = ({ onUnauthorized, onOpenTab }) => {
   const { data: stats, error, isLoading, reload } = useAdminFetch('/api/stats', undefined, onUnauthorized)
 
@@ -189,6 +251,8 @@ const DashboardTab = ({ onUnauthorized, onOpenTab }) => {
         <Stat label='Customer accounts' value={allTime.customers} />
         <Stat label='Messages received' value={allTime.messages} />
       </div>
+
+      <CsvDownload onUnauthorized={onUnauthorized} />
 
       <p className='text-xs text-gray-500'>This page refreshes every {REFRESH_MS / 1000} seconds.</p>
     </div>

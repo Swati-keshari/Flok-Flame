@@ -18,3 +18,8 @@
   --color-accent: #1e3a8a;
   --color-dark:#1f2937;
 }
+/* Printing (the bill page): hide the site chrome and buttons, print on white */
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; }
+}

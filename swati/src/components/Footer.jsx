@@ -23,7 +23,7 @@ const Footer = () => {
   }
 
   return (
-    <div className='py-20 bg-secondary'>
+    <div className='no-print py-20 bg-secondary'>
       <div className='container mx-auto px-6'>
         <div className='grid grid-cols-1 md:grid-cols-4 gap-8'>
          { /*first-col*/}

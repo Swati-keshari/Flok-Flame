@@ -16,6 +16,7 @@ import { Router } from 'express'
 import Reservation from '../models/Reservation.js'
 import Restaurant from '../models/Restaurant.js'
 import { optionalCustomer, requireAdmin } from '../middleware/auth.js'
+import { emailBookingStatus } from '../mailer.js'
 import { isValidPhone, isWithinHours, nowHHMM, phoneDigits, todayISO } from '../utils.js'
 
 const router = Router()
@@ -74,6 +75,7 @@ router.post('/', optionalCustomer, async (req, res) => {
     fullname, email, phone, date, time, partySize, tableRef, specialRequest,
   })
   await reservation.populate('restaurant', 'name address')
+  emailBookingStatus(reservation)
   res.status(201).json(reservation)
 })
 
@@ -124,12 +126,15 @@ router.get('/:id', requireAdmin, async (req, res) => {
 
 // Update reservation status (pending / confirmed / cancelled)
 router.patch('/:id', requireAdmin, async (req, res) => {
+  const before = await Reservation.findById(req.params.id)
+  if (!before) return res.status(404).json({ message: 'Reservation not found' })
   const reservation = await Reservation.findByIdAndUpdate(
     req.params.id,
     { status: req.body.status },
     { new: true, runValidators: true }
   ).populate('restaurant', 'name address')
-  if (!reservation) return res.status(404).json({ message: 'Reservation not found' })
+  // Tell the customer when the admin confirms or cancels
+  if (reservation.status !== before.status) emailBookingStatus(reservation)
   res.json(reservation)
 })
 

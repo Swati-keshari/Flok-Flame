@@ -1,9 +1,10 @@
 // One restaurant's page (route "/restaurants/:id").
-// Header with photo, rating, open/closed badge and hours, then 3 tabs:
+// Header with photo, rating (+ number of reviews), open/closed badge and hours, then 4 tabs:
 //   - Order Online  → RestaurantMenu (add dishes to the cart)
 //   - Book a Table  → BookTableForm
+//   - Reviews       → RestaurantReviews (ratings from delivered orders)
 //   - Info & Location → map, directions link, phone
-// The active tab is kept in the URL (?tab=order|book|info) so it survives refresh.
+// The active tab is kept in the URL (?tab=order|book|reviews|info) so it survives refresh.
 
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { FaArrowLeft, FaClock, FaLocationDot, FaMotorcycle, FaPhone, FaStar } from 'react-icons/fa6'
@@ -11,12 +12,14 @@ import useFetch from '../hooks/useFetch'
 import RestaurantMap from '../components/RestaurantMap'
 import RestaurantMenu from '../components/RestaurantMenu'
 import BookTableForm from '../components/BookTableForm'
+import RestaurantReviews from '../components/RestaurantReviews'
 import { restaurantImage } from '../utils/restaurantImage'
 import { hoursLabel, isOpenNow } from '../utils/time'
 
 const tabs = [
   { id: 'order', label: 'Order Online' },
   { id: 'book', label: 'Book a Table' },
+  { id: 'reviews', label: 'Reviews' },
   { id: 'info', label: 'Info & Location' },
 ]
 
@@ -55,6 +58,9 @@ const RestaurantDetail = () => {
               <span className='flex items-center gap-1 rounded bg-green-700 px-2 py-1 text-sm font-bold text-white'>
                 {restaurant.rating} <FaStar className='text-xs' />
               </span>
+              {restaurant.reviewCount > 0 && (
+                <span className='text-sm text-gray-600'>({restaurant.reviewCount} {restaurant.reviewCount === 1 ? 'review' : 'reviews'})</span>
+              )}
               <span className={`rounded-full px-3 py-1 text-xs font-semibold ${isOpen ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'}`}>
                 {isOpen ? 'Open now' : 'Closed'}
               </span>
@@ -89,6 +95,7 @@ const RestaurantDetail = () => {
 
         {activeTab === 'order' && <RestaurantMenu restaurant={restaurant} />}
         {activeTab === 'book' && <BookTableForm restaurant={restaurant} />}
+        {activeTab === 'reviews' && <RestaurantReviews restaurantId={restaurant._id} />}
         {activeTab === 'info' && (
           <div className='max-w-3xl'>
             <RestaurantMap restaurants={[restaurant]} className='h-72' />

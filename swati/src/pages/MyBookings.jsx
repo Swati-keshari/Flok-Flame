@@ -1,14 +1,15 @@
 // My Orders & Bookings page (routes "/my-bookings" and "/my-orders").
 // The customer enters the email + phone they used; we then show two tabs:
-//   - Food Orders (click one to track it)
+//   - Food Orders (click one to track it; "Reorder" puts the same dishes back in the cart)
 //   - Table Bookings (upcoming ones can be cancelled)
 // Guests: email + phone together prove the orders/bookings are theirs.
 // Logged-in customers: everything loads automatically from their account (no form).
 
 import { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { getJSON, patchJSON, postJSON } from '../api'
 import { useCustomer } from '../context/customerContext'
+import { useCart } from '../context/cartContext'
 import InputField from '../components/InputField'
 import StatusBadge from '../components/StatusBadge'
 import OrderStatusBadge from '../components/OrderStatusBadge'
@@ -21,6 +22,9 @@ const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0'
 const formatDateTime = (iso) => new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
 
 const MyBookings = () => {
+  const navigate = useNavigate()
+  const cart = useCart()
+  const [reorderingId, setReorderingId] = useState(null)
   const [searchParams, setSearchParams] = useSearchParams()
   const tab = searchParams.get('tab') === 'bookings' ? 'bookings' : 'orders'
   const saved = loadDeliveryDetails()
@@ -80,6 +84,35 @@ const MyBookings = () => {
       setError(err.message)
     } finally {
       setCancellingId(null)
+    }
+  }
+
+  // Put the dishes of an old order back in the cart, with TODAY's menu prices.
+  // Dishes that are sold out or no longer on the menu are skipped.
+  const reorder = async (order) => {
+    setError('')
+    setReorderingId(order._id)
+    try {
+      const menu = await getJSON(`/api/restaurants/${order.restaurant._id}/menu`)
+      const byId = Object.fromEntries(menu.map((m) => [m._id, m]))
+      const restaurant = { _id: order.restaurant._id, name: order.restaurant.name }
+      const skipped = []
+      let added = 0
+      for (const line of order.items) {
+        const dish = byId[line.menuItem]
+        if (!dish || !dish.isAvailable) { skipped.push(line.name); continue }
+        for (let i = 0; i < line.quantity; i++) {
+          // false = the customer chose to keep their cart from another restaurant
+          if (!cart.addItem(restaurant, { menuItem: dish._id, name: dish.name, price: dish.price, isVeg: dish.isVeg })) return
+        }
+        added++
+      }
+      if (skipped.length) window.alert(`Not available any more, so not added: ${skipped.join(', ')}`)
+      if (added) navigate('/cart')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setReorderingId(null)
     }
   }
 
@@ -145,8 +178,8 @@ const MyBookings = () => {
               ) : (
                 <ul className='space-y-4'>
                   {results.orders.map((o) => (
-                    <li key={o._id}>
-                      <Link to={`/orders/${o._id}`} className='flex flex-col gap-2 rounded-lg bg-white p-5 shadow transition hover:shadow-md sm:flex-row sm:items-center sm:justify-between'>
+                    <li key={o._id} className='rounded-lg bg-white shadow transition hover:shadow-md'>
+                      <Link to={`/orders/${o._id}`} className='flex flex-col gap-2 p-5 pb-3 sm:flex-row sm:items-center sm:justify-between'>
                         <div>
                           <div className='mb-1 flex items-center gap-3'>
                             <h2 className='text-lg font-bold text-dark'>{o.restaurant?.name || 'Restaurant'}</h2>
@@ -161,6 +194,19 @@ const MyBookings = () => {
                           <p className='text-sm font-semibold text-primary'>Track →</p>
                         </div>
                       </Link>
+                      {o.restaurant?._id && (
+                        <div className='flex justify-end gap-3 border-t px-5 py-2'>
+                          <Link to={`/orders/${o._id}/bill`} className='text-sm font-semibold text-gray-600 hover:text-primary'>Bill</Link>
+                          <button
+                            type='button'
+                            onClick={() => reorder(o)}
+                            disabled={reorderingId === o._id}
+                            className='rounded border border-primary px-3 py-1 text-sm font-semibold text-primary hover:bg-primary hover:text-white transition disabled:opacity-60'
+                          >
+                            {reorderingId === o._id ? 'Adding...' : 'Reorder'}
+                          </button>
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>

@@ -10,8 +10,11 @@
 //   POST  /api/orders/lookup              -> "My Orders" (email + phone)
 //   GET   /api/orders/track/:id?phone=    -> order tracking page
 //   PATCH /api/orders/:id/cancel          -> customer cancels (early only)
+//   GET   /api/orders/:id/review?phone=   -> the review of this order (or null)
+//   POST  /api/orders/:id/review          -> rate a delivered order (1-5 stars)
 // Admin only:
 //   GET   /api/orders                     -> list orders (filters)
+//   GET   /api/orders/:id                 -> one order (printable bill)
 //   PATCH /api/orders/:id                 -> change order status
 //   PATCH /api/orders/:id/refunded        -> mark a refund as done
 // Customers prove an order is theirs with the phone number used to order.
@@ -21,6 +24,9 @@ import { Router } from 'express'
 import Order, { ORDER_STATUSES } from '../models/Order.js'
 import Restaurant from '../models/Restaurant.js'
 import MenuItem from '../models/MenuItem.js'
+import Coupon from '../models/Coupon.js'
+import Review from '../models/Review.js'
+import { emailOrderStatus } from '../mailer.js'
 import { optionalCustomer, requireAdmin } from '../middleware/auth.js'
 import { distanceKm, isOpenNow, isValidPhone, phoneDigits } from '../utils.js'
 import {
@@ -40,9 +46,34 @@ class OrderError extends Error {
   }
 }
 
+// Has this customer (same email, or same 10-digit phone) already ordered before?
+const hasOrderedBefore = async ({ email, phone }) => {
+  const digits = phoneDigits(phone)
+  const or = []
+  if (email) or.push({ 'customer.email': String(email).trim().toLowerCase() })
+  // phone is stored as typed ("+91 98765-43210"), so match the 10 digits with anything between them
+  if (digits.length === 10) or.push({ 'customer.phone': new RegExp(`${digits.split('').join('\\D*')}$`) })
+  if (!or.length) return false
+  return Boolean(await Order.exists({ $or: or, status: { $nin: ['cancelled', 'awaiting_payment'] } }))
+}
+
+// Works out the rupees a coupon takes off. Returns { coupon, discount } or { error }.
+const applyCoupon = async (code, subtotal, customer) => {
+  const coupon = await Coupon.findOne({ code: String(code).trim().toUpperCase(), active: true })
+  if (!coupon) return { error: 'This coupon code is not valid' }
+  if (subtotal < coupon.minOrder) return { error: `Add items worth Rs ${coupon.minOrder - subtotal} more to use ${coupon.code}` }
+  if (coupon.firstOrderOnly) {
+    if (!customer?.email && !customer?.phone) return { error: `${coupon.code} is for first orders only - enter your phone and email first` }
+    if (await hasOrderedBefore(customer)) return { error: `${coupon.code} is only for your first order` }
+  }
+  let discount = coupon.type === 'percent' ? Math.round((subtotal * coupon.value) / 100) : coupon.value
+  if (coupon.type === 'percent' && coupon.maxDiscount > 0) discount = Math.min(discount, coupon.maxDiscount)
+  return { coupon, discount: Math.min(discount, subtotal) }
+}
+
 // Prices the cart from the database (never trusts prices sent by the browser).
-// items: [{ menuItem: id, quantity }]
-const buildBill = async ({ restaurant: restaurantId, items, location }) => {
+// items: [{ menuItem: id, quantity }], couponCode optional, customer used for first-order coupons
+const buildBill = async ({ restaurant: restaurantId, items, location, couponCode, customer }) => {
   const restaurant = await Restaurant.findById(restaurantId)
   if (!restaurant) throw new OrderError(404, 'Restaurant not found')
   if (!Array.isArray(items) || items.length === 0) throw new OrderError(400, 'Your cart is empty')
@@ -64,7 +95,18 @@ const buildBill = async ({ restaurant: restaurantId, items, location }) => {
   }))
   const subtotal = lines.reduce((sum, l) => sum + l.price * l.quantity, 0)
   const deliveryFee = subtotal >= FREE_DELIVERY_ABOVE ? 0 : DELIVERY_FEE
-  const tax = Math.round(subtotal * TAX_RATE)
+
+  // A bad coupon doesn't stop the bill: it's returned as couponError for the cart to show
+  let discount = 0
+  let appliedCoupon = null
+  let couponError = null
+  if (couponCode) {
+    const result = await applyCoupon(couponCode, subtotal, customer)
+    if (result.error) couponError = result.error
+    else { discount = result.discount; appliedCoupon = result.coupon.code }
+  }
+  // GST is charged on the price after the discount
+  const tax = Math.round((subtotal - discount) * TAX_RATE)
 
   let distance = null
   const lat = parseFloat(location?.lat)
@@ -78,9 +120,12 @@ const buildBill = async ({ restaurant: restaurantId, items, location }) => {
     restaurant,
     items: lines,
     subtotal,
+    discount,
+    couponCode: appliedCoupon,
+    couponError,
     deliveryFee,
     tax,
-    total: subtotal + deliveryFee + tax,
+    total: subtotal - discount + deliveryFee + tax,
     distanceKm: distance,
     location: distance === null ? undefined : { lat, lng },
     isOpen: isOpenNow(restaurant),
@@ -107,6 +152,8 @@ const markPaid = async (order, razorpayPaymentId) => {
   order.status = 'placed'
   order.statusHistory.push({ status: 'placed' })
   await order.save()
+  await order.populate('restaurant', 'name address phone location')
+  emailOrderStatus(order)
 }
 
 // For an online order still waiting for payment, check with Razorpay in case
@@ -119,9 +166,15 @@ const syncPayment = async (order) => {
 
 const cancelOrder = async (order) => {
   if (order.paymentStatus === 'paid') order.paymentStatus = 'refund_needed'
+  const wasAwaitingPayment = order.status === 'awaiting_payment'
   order.status = 'cancelled'
   order.statusHistory.push({ status: 'cancelled' })
   await order.save()
+  // No email for an online order that was never paid (the customer never got an "order placed" email)
+  if (!wasAwaitingPayment) {
+    await order.populate('restaurant', 'name')
+    emailOrderStatus(order)
+  }
 }
 
 // ---------- Public ----------
@@ -149,6 +202,7 @@ router.post('/', optionalCustomer, async (req, res) => {
     return sendError(res, err)
   }
   const { restaurant } = bill
+  if (bill.couponError) return res.status(400).json({ message: bill.couponError })
   if (!bill.isOpen) {
     return res.status(400).json({ message: `${restaurant.name} is closed now. Orders are accepted ${restaurant.openTime} – ${restaurant.closeTime}` })
   }
@@ -178,6 +232,8 @@ router.post('/', optionalCustomer, async (req, res) => {
     distanceKm: bill.distanceKm,
     note,
     subtotal: bill.subtotal,
+    couponCode: bill.couponCode,
+    discount: bill.discount,
     deliveryFee: bill.deliveryFee,
     tax: bill.tax,
     total: bill.total,
@@ -198,6 +254,8 @@ router.post('/', optionalCustomer, async (req, res) => {
   }
 
   await order.populate('restaurant', 'name address phone location')
+  // Online orders get their "order placed" email only after the payment is confirmed
+  if (!isOnline) emailOrderStatus(order)
   res.status(201).json({ ...order.toJSON(), checkout: isOnline ? checkoutOptions(order) : null })
 })
 
@@ -264,7 +322,49 @@ router.patch('/:id/cancel', async (req, res) => {
   res.json(order)
 })
 
+// ---------- Reviews (customer, after delivery) ----------
+
+// The review this order already has (or null), so the tracking page knows whether to show the form
+router.get('/:id/review', async (req, res) => {
+  const order = await findCustomerOrder(req.params.id, req.query.phone)
+  if (!order) return res.status(404).json({ message: 'Order not found' })
+  res.json(await Review.findOne({ order: order._id }))
+})
+
+// Rate a delivered order (1-5 stars + optional comment). One review per order.
+// Afterwards the restaurant's rating becomes the average of all its reviews.
+router.post('/:id/review', async (req, res) => {
+  const order = await findCustomerOrder(req.params.id, req.body.phone)
+  if (!order) return res.status(404).json({ message: 'Order not found' })
+  if (order.status !== 'delivered') return res.status(400).json({ message: 'You can rate an order once it has been delivered' })
+  if (await Review.exists({ order: order._id })) return res.status(409).json({ message: 'You have already rated this order' })
+
+  const review = await Review.create({
+    restaurant: order.restaurant._id,
+    order: order._id,
+    name: order.customer.name.split(' ')[0],
+    rating: Number(req.body.rating),
+    comment: req.body.comment,
+  })
+  const [summary] = await Review.aggregate([
+    { $match: { restaurant: order.restaurant._id } },
+    { $group: { _id: null, avg: { $avg: '$rating' }, count: { $sum: 1 } } },
+  ])
+  await Restaurant.findByIdAndUpdate(order.restaurant._id, {
+    rating: Math.round(summary.avg * 10) / 10,
+    reviewCount: summary.count,
+  })
+  res.status(201).json(review)
+})
+
 // ---------- Admin only ----------
+
+// One order with full details (used by the admin's printable bill)
+router.get('/:id', requireAdmin, async (req, res) => {
+  const order = await Order.findById(req.params.id).populate('restaurant', 'name address phone')
+  if (!order) return res.status(404).json({ message: 'Order not found' })
+  res.json(order)
+})
 
 router.get('/', requireAdmin, async (req, res) => {
   const { status, restaurant } = req.query
@@ -295,6 +395,8 @@ router.patch('/:id', requireAdmin, async (req, res) => {
       order.status = status
       order.statusHistory.push({ status })
       await order.save()
+      await order.populate('restaurant', 'name')
+      emailOrderStatus(order)
     }
   }
   await order.populate('restaurant', 'name')

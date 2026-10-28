@@ -6,6 +6,8 @@
 import { spawn, execFileSync } from 'child_process'
 import crypto from 'crypto'
 import mongoose from 'mongoose'
+import fs from 'fs'
+import path from 'path'
 
 const PORT = 5079
 const B = `http://localhost:${PORT}/api`
@@ -17,6 +19,7 @@ const env = {
   JWT_SECRET: 'test-jwt-secret',
   RAZORPAY_KEY_ID: 'rzp_test_dummy',
   RAZORPAY_KEY_SECRET: SECRET,
+  NODE_ENV: 'test', // don't print emails during tests
 }
 
 let passed = 0
@@ -49,6 +52,7 @@ const sign = (o, p, secret = SECRET) => crypto.createHmac('sha256', secret).upda
 // ---------- setup ----------
 execFileSync('node', ['src/seed.js'], { env, stdio: 'ignore' })
 execFileSync('node', ['src/createAdmin.js', 'admin@test.com', 'secret123'], { env, stdio: 'ignore' })
+execFileSync('node', ['src/seedCoupons.js'], { env, stdio: 'ignore' })
 const server = spawn('node', ['src/server.js'], { env, stdio: 'ignore' })
 for (let i = 0; i < 50; i++) {
   try { await fetch(`${B}/health`); break } catch { await new Promise((r) => setTimeout(r, 200)) }
@@ -178,6 +182,83 @@ try {
   const { data: { token: adminToken } } = await call('POST', '/auth/login', { email: 'admin@test.com', password: 'secret123' })
   r = await callAs(adminToken, 'GET', '/customers/me')
   check('admin token cannot be used as a customer', r.status === 401)
+
+  // ---------- coupons ----------
+  const bigCart = [{ menuItem: o1._id, quantity: 5 }]
+  r = await call('POST', '/orders/quote', { restaurant: ord, items: bigCart, couponCode: 'nope' })
+  check('unknown coupon gives a message, bill still works', r.status === 200 && !!r.data.couponError && r.data.discount === 0)
+  r = await call('POST', '/orders/quote', { restaurant: ord, items: bigCart, couponCode: 'first50', customer: { phone: '9876543210', email: 'ravi@test.com' } })
+  check('FIRST50 refused for a customer who ordered before', !!r.data.couponError, JSON.stringify(r.data.couponError))
+  const newbie = { name: 'Neha', email: 'neha@test.com', phone: '9111111111' }
+  r = await call('POST', '/orders/quote', { restaurant: ord, items: bigCart, couponCode: 'first50', customer: newbie })
+  check('FIRST50 gives Rs 50 off a first order, GST on the discounted price',
+    r.data.discount === 50 && r.data.tax === Math.round((r.data.subtotal - 50) * 0.05) && r.data.total === r.data.subtotal - 50 + r.data.deliveryFee + r.data.tax,
+    JSON.stringify(r.data))
+  r = await call('POST', '/orders', { restaurant: ord, items: bigCart, couponCode: 'nope', customer: newbie, address })
+  check('order with an invalid coupon is refused', r.status === 400)
+  r = await call('POST', '/orders', { restaurant: ord, items: bigCart, couponCode: 'FIRST50', customer: newbie, address })
+  check('order with FIRST50 saves the discount', r.status === 201 && r.data.discount === 50 && r.data.couponCode === 'FIRST50', JSON.stringify(r.data))
+  const couponOrder = r.data._id
+  r = await call('POST', '/orders/quote', { restaurant: ord, items: bigCart, couponCode: 'FIRST50', customer: { ...newbie, phone: '+91 91111 11111' } })
+  check('FIRST50 can\'t be used twice (same phone written differently)', !!r.data.couponError)
+  r = await call('POST', '/coupons', { code: 'TEST10', type: 'percent', value: 10, maxDiscount: 20 })
+  check('coupons need admin login', r.status === 401)
+  r = await call('POST', '/coupons', { code: 'TEST10', type: 'percent', value: 10, maxDiscount: 20 }, adminToken)
+  check('admin creates a coupon', r.status === 201)
+  r = await call('POST', '/orders/quote', { restaurant: ord, items: bigCart, couponCode: 'test10' })
+  check('percent coupon is capped by maxDiscount', r.data.discount === Math.min(20, Math.round(r.data.subtotal * 0.1)))
+  r = await call('GET', '/coupons', null, adminToken)
+  check('coupon list shows how often each was used', r.data.find((c) => c.code === 'FIRST50')?.uses === 1)
+
+  // ---------- reviews ----------
+  r = await call('POST', `/orders/${couponOrder}/review`, { phone: newbie.phone, rating: 5 })
+  check('order can\'t be reviewed before delivery', r.status === 400)
+  for (const st of ['preparing', 'out_for_delivery', 'delivered']) await call('PATCH', `/orders/${couponOrder}`, { status: st }, adminToken)
+  r = await call('POST', `/orders/${couponOrder}/review`, { phone: '0000000000', rating: 5 })
+  check('review with wrong phone is refused', r.status === 404)
+  r = await call('POST', `/orders/${couponOrder}/review`, { phone: newbie.phone, rating: 7 })
+  check('rating must be 1-5', r.status === 400)
+  r = await call('POST', `/orders/${couponOrder}/review`, { phone: newbie.phone, rating: 2, comment: 'Cold food' })
+  check('customer reviews a delivered order', r.status === 201)
+  r = await call('POST', `/orders/${couponOrder}/review`, { phone: newbie.phone, rating: 5 })
+  check('same order can\'t be reviewed twice', r.status === 409)
+  r = await call('GET', `/restaurants/${ord}`)
+  check('restaurant rating becomes the review average', r.data.rating === 2 && r.data.reviewCount === 1, JSON.stringify({ rating: r.data.rating, n: r.data.reviewCount }))
+  r = await call('GET', `/restaurants/${ord}/reviews`)
+  check('restaurant reviews are listed', r.data.length === 1 && r.data[0].comment === 'Cold food')
+
+  // ---------- saved addresses ----------
+  r = await callAs(ctoken, 'POST', '/customers/me/addresses', { label: 'Home', line: 'Flat 13, Yucca' })
+  check('customer saves an address', r.status === 201 && r.data.addresses.length === 1)
+  const addrId = r.data.addresses[0]._id
+  r = await callAs(ctoken, 'POST', '/customers/me/addresses', { label: 'Office', line: '  ' })
+  check('empty address is refused', r.status === 400)
+  r = await callAs(ctoken, 'DELETE', `/customers/me/addresses/${addrId}`)
+  check('customer removes a saved address', r.status === 200 && r.data.addresses.length === 0)
+
+  // ---------- printable bill + CSV + upload (admin) ----------
+  r = await call('GET', `/orders/${couponOrder}`)
+  check('full order details need admin login', r.status === 401)
+  r = await call('GET', `/orders/${couponOrder}`, null, adminToken)
+  check('admin gets one order for the bill', r.status === 200 && r.data.orderNumber)
+  let res = await fetch(`${B}/stats/orders.csv`, { headers: { Authorization: `Bearer ${adminToken}` } })
+  const csv = await res.text()
+  check('orders CSV downloads with a header row', res.status === 200 && csv.includes('Order number') && csv.includes('FIRST50'))
+  res = await fetch(`${B}/stats/orders.csv`)
+  check('CSV needs admin login', res.status === 401)
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
+  const form = new FormData()
+  form.append('image', new Blob([png], { type: 'image/png' }), 'dish.png')
+  res = await fetch(`${B}/uploads`, { method: 'POST', body: form, headers: { Authorization: `Bearer ${adminToken}` } })
+  const up = await res.json()
+  check('admin uploads a dish photo', res.status === 201 && up.url?.startsWith('/uploads/'), JSON.stringify(up))
+  res = await fetch(`http://localhost:${PORT}${up.url}`)
+  check('uploaded photo is served', res.status === 200 && res.headers.get('content-type') === 'image/png')
+  if (up.url) fs.rmSync(path.join('uploads', path.basename(up.url)), { force: true })
+  const txt = new FormData()
+  txt.append('image', new Blob(['<script>'], { type: 'text/html' }), 'evil.html')
+  res = await fetch(`${B}/uploads`, { method: 'POST', body: txt, headers: { Authorization: `Bearer ${adminToken}` } })
+  check('non-image upload is refused', res.status === 400)
 
   // ---------- admin dashboard stats ----------
   r = await call('GET', '/stats')

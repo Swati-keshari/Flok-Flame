@@ -17,6 +17,8 @@ const restaurantSchema = new mongoose.Schema(
     phone: { type: String, trim: true, default: '' },
     image: { type: String, default: '' },
     rating: { type: Number, min: 0, max: 5, default: 4 },
+    // How many customer reviews the rating is based on (0 = sample rating)
+    reviewCount: { type: Number, default: 0 },
     priceForTwo: { type: Number, min: 0, default: 500 },
     openTime: { type: String, default: '11:00' },
     closeTime: { type: String, default: '23:00' },

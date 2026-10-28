@@ -12,6 +12,7 @@
     "test": "node tests/api.test.mjs",
     "seed": "node src/seed.js",
     "seed-menus": "node src/seedMenus.js",
+    "seed-coupons": "node src/seedCoupons.js",
     "create-admin": "node src/createAdmin.js",
     "db": "mkdir -p ~/mongodb-data && mongod --dbpath ~/mongodb-data --bind_ip 127.0.0.1 --fork --logpath ~/mongodb-data/mongod.log"
   },
@@ -23,6 +24,8 @@
     "express": "^5.3.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.11.4",
+    "multer": "^2.5.0",
+    "nodemailer": "^10.2.1",
     "razorpay": "^2.9.8"
   },
   "devDependencies": {

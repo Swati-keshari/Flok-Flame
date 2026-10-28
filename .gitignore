@@ -6,6 +6,9 @@ node_modules/
 .env.*
 !.env.example
 
+# Photos uploaded from the admin panel (they live in the database's world, not in code)
+backend/uploads/
+
 # Build output and logs
 dist/
 dist-ssr/

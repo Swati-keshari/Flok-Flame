@@ -26,6 +26,14 @@ const customerSchema = new mongoose.Schema(
       trim: true,
       validate: [isValidPhone, 'Please enter a valid 10-digit phone number'],
     },
+    // Saved delivery addresses ("Home", "Office") picked at checkout
+    addresses: [
+      {
+        label: { type: String, trim: true, default: 'Home', maxlength: 20 },
+        line: { type: String, trim: true, required: true },
+        landmark: { type: String, trim: true, default: '' },
+      },
+    ],
     password: { type: String, required: true, minlength: [6, 'Password must be at least 6 characters'], select: false },
   },
   { timestamps: true }
@@ -42,7 +50,7 @@ customerSchema.methods.checkPassword = function (password) {
 
 // What is safe to send to the browser (no password)
 customerSchema.methods.toPublic = function () {
-  return { id: this._id, name: this.name, email: this.email, phone: this.phone }
+  return { id: this._id, name: this.name, email: this.email, phone: this.phone, addresses: this.addresses }
 }
 
 export default mongoose.model('Customer', customerSchema)

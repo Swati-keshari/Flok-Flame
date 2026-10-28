@@ -14,8 +14,8 @@ const CartBar = () => {
   return (
     <>
     {/* spacer so the fixed bar never hides the end of the page */}
-    <div className='h-24' aria-hidden='true' />
-    <div className='fixed inset-x-0 bottom-0 z-40 px-4 pb-4'>
+    <div className='no-print h-24' aria-hidden='true' />
+    <div className='no-print fixed inset-x-0 bottom-0 z-40 px-4 pb-4'>
       <Link
         to='/cart'
         className='mx-auto flex max-w-2xl items-center justify-between gap-4 rounded-lg bg-green-700 px-5 py-3 text-white shadow-xl transition hover:bg-green-800'

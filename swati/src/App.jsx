@@ -2,7 +2,7 @@
 // - Navbar and Footer are shown on every page.
 // - CustomerProvider knows which customer is logged in; CartProvider holds the food cart.
 // - CartBar is the green "View Cart" bar at the bottom of the screen.
-// Routes: / (home), /restaurants, /restaurants/:id, /cart, /orders/:id,
+// Routes: / (home), /restaurants, /restaurants/:id, /cart, /orders/:id, /orders/:id/bill,
 // /my-bookings (and /my-orders), /login (customer), /admin/login, /admin, and * (404 page).
 
 import { lazy, Suspense } from 'react'
@@ -23,6 +23,7 @@ const OrderTracking = lazy(() => import('./pages/OrderTracking'))
 const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'))
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
 const CustomerLogin = lazy(() => import('./pages/CustomerLogin'))
+const OrderBill = lazy(() => import('./pages/OrderBill'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
 const App = () => {
@@ -37,6 +38,7 @@ const App = () => {
           <Route path='/restaurants/:id' element={<RestaurantDetail />} />
           <Route path='/cart' element={<Cart />} />
           <Route path='/orders/:id' element={<OrderTracking />} />
+          <Route path='/orders/:id/bill' element={<OrderBill />} />
           <Route path='/my-bookings' element={<MyBookings />} />
           <Route path='/my-orders' element={<MyBookings />} />
           <Route path='/login' element={<CustomerLogin />} />

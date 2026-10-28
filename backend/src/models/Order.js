@@ -60,6 +60,9 @@ const orderSchema = new mongoose.Schema(
     razorpayPaymentId: { type: String, default: null },
     paidAt: { type: Date, default: null },
     subtotal: { type: Number, required: true },
+    // Coupon used (e.g. FIRST50) and the rupees it took off the item total
+    couponCode: { type: String, default: null },
+    discount: { type: Number, default: 0 },
     deliveryFee: { type: Number, required: true },
     tax: { type: Number, required: true },
     total: { type: Number, required: true },

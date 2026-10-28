@@ -83,6 +83,7 @@ const RestaurantsTab = ({ onUnauthorized }) => {
     <div>
       {editing ? (
         <RestaurantForm
+          onUnauthorized={onUnauthorized}
           key={editing === 'new' ? 'new' : editing._id}
           restaurant={editing === 'new' ? null : editing}
           onSave={save}

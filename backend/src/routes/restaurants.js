@@ -5,6 +5,7 @@
 //   GET  /api/restaurants?lat=&lng=&maxKm=&search=  -> list (nearest first if lat/lng given)
 //   GET  /api/restaurants/:id                       -> one restaurant
 //   GET  /api/restaurants/:id/menu                  -> its menu
+//   GET  /api/restaurants/:id/reviews               -> latest customer reviews
 //   GET  /api/restaurants/:id/availability?date=&time= -> free tables for a slot
 // Admin only:
 //   POST   /api/restaurants          -> add a restaurant
@@ -19,6 +20,7 @@ import Restaurant from '../models/Restaurant.js'
 import Reservation from '../models/Reservation.js'
 import { requireAdmin } from '../middleware/auth.js'
 import MenuItem from '../models/MenuItem.js'
+import Review from '../models/Review.js'
 import { sampleRestaurantsAround } from '../sampleRestaurants.js'
 import { sampleMenuFor } from '../sampleMenus.js'
 
@@ -101,6 +103,12 @@ router.get('/:id', async (req, res) => {
 router.get('/:id/menu', async (req, res) => {
   const items = await MenuItem.find({ restaurant: req.params.id }).sort({ category: 1, name: 1 })
   res.json(items)
+})
+
+// Latest 20 reviews, newest first
+router.get('/:id/reviews', async (req, res) => {
+  const reviews = await Review.find({ restaurant: req.params.id }).sort({ createdAt: -1 }).limit(20)
+  res.json(reviews)
 })
 
 // How many tables are already booked for a given date+time slot
