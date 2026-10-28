@@ -5,13 +5,14 @@
 // - Shows a map (RestaurantMap) and a list of RestaurantCard.
 // If location is denied, all restaurants are shown (sorted by rating).
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { FaLocationCrosshairs, FaMagnifyingGlass } from 'react-icons/fa6'
 import { Link } from 'react-router-dom'
 import { getJSON } from '../api'
 import useCurrentLocation from '../hooks/useCurrentLocation'
 import RestaurantCard from '../components/RestaurantCard'
 import RestaurantMap from '../components/RestaurantMap'
+import { isOpenNow } from '../utils/time'
 
 const distanceOptions = [
   { value: '', label: 'Any distance' },
@@ -26,6 +27,7 @@ const Restaurants = () => {
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [maxKm, setMaxKm] = useState('')
+  const [openOnly, setOpenOnly] = useState(false)
   // Results are stored with the query they belong to, so "loading" is just
   // "the latest results are for an older query"
   const [result, setResult] = useState({ key: null, restaurants: [], error: '' })
@@ -59,8 +61,13 @@ const Restaurants = () => {
   }, [queryKey, waitingForLocation])
 
   const isLoading = waitingForLocation || result.key !== queryKey
-  const { restaurants, error } = result
-  const nearest = restaurants[0]?.distanceKm
+  const { restaurants: allRestaurants, error } = result
+  const nearest = allRestaurants[0]?.distanceKm
+  // "Open now" filter runs in the browser (opening hours are already in the list)
+  // useMemo keeps the same array between renders, so the map doesn't re-zoom on every keystroke
+  const openRestaurants = useMemo(() => allRestaurants.filter(isOpenNow), [allRestaurants])
+  const openCount = openRestaurants.length
+  const restaurants = openOnly ? openRestaurants : allRestaurants
 
   return (
     <div className='min-h-screen bg-secondary py-12'>
@@ -113,6 +120,10 @@ const Restaurants = () => {
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
+          <label className='flex cursor-pointer items-center gap-2 rounded border bg-white px-4 py-3 font-semibold text-dark'>
+            <input type='checkbox' checked={openOnly} onChange={(e) => setOpenOnly(e.target.checked)} className='accent-green-700' />
+            Open now{!isLoading && ` (${openCount})`}
+          </label>
         </div>
 
         {error && <p className='mb-6 text-center text-red-600'>{error}</p>}
@@ -135,7 +146,9 @@ const Restaurants = () => {
               {restaurants.length === 0 ? (
                 <div className='text-center text-gray-700'>
                   <p className='mb-3'>
-                    {maxKm && location ? `No restaurants within ${maxKm} km of you.` : 'No restaurants found. Try a different search.'}
+                    {openOnly && allRestaurants.length > 0
+                      ? 'No restaurant is open right now. Most open between 10 and 11 AM.'
+                      : maxKm && location ? `No restaurants within ${maxKm} km of you.` : 'No restaurants found. Try a different search.'}
                   </p>
                   {maxKm && location && (
                     <button type='button' onClick={() => setMaxKm('')} className='rounded-full bg-primary px-6 py-2 font-semibold text-white'>

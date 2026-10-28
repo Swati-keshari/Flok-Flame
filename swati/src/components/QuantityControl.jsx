@@ -1,5 +1,6 @@
 // QuantityControl: the "ADD" button that turns into  −  2  +  once a dish is in the cart.
 // Props: quantity, onAdd, onRemove, disabled, label (dish name, for screen readers).
+// disabled = the restaurant is closed right now, so the button says "CLOSED" instead of "ADD".
 
 // "ADD" button that turns into  −  2  +  once the item is in the cart
 const QuantityControl = ({ quantity, onAdd, onRemove, disabled, label = 'item' }) => {
@@ -9,9 +10,9 @@ const QuantityControl = ({ quantity, onAdd, onRemove, disabled, label = 'item' }
         type='button'
         onClick={onAdd}
         disabled={disabled}
-        className='w-24 rounded border border-primary bg-white py-1.5 text-sm font-bold text-primary shadow-sm hover:bg-primary hover:text-white transition disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white disabled:hover:text-primary'
+        className='w-24 rounded border border-primary bg-white py-1.5 text-sm font-bold text-primary shadow-sm hover:bg-primary hover:text-white transition disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-400 disabled:hover:bg-white'
       >
-        ADD
+        {disabled ? 'CLOSED' : 'ADD'}
       </button>
     )
   }
